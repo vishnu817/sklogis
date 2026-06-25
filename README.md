@@ -1,2 +1,0 @@
-# sklogis
-RecieptGenerator
