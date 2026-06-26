@@ -138,8 +138,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div id="scan-flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:7;transition:opacity .15s;"></div>
   <div class="ocr-bar" id="ocrbar"></div>
   <div class="scan-btns">
-    <button class="on" id="sb-bc" onclick="setMode('bc')">📦 AWB Barcode</button>
-    <button id="sb-ocr" onclick="setMode('ocr')">🔤 Scan Label (OCR)</button>
+    <button class="on" id="sb-bc" style="flex:1;">📦 Scanning for AWB Barcode…</button>
   </div>
 </div>
 
@@ -162,9 +161,47 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <canvas id="tmpc" style="display:none;"></canvas>
 <div id="parea" style="display:none;"></div>
 
+<!-- OCR CAPTURE MODAL -->
+<div class="mbg" id="ocr-modal">
+  <div class="mbox" style="max-height:95vh;">
+    <div class="mhandle"></div>
+    <div style="font-weight:800;font-size:17px;margin-bottom:4px;">📷 Scan Address Label</div>
+    <div style="font-size:13px;color:#888;margin-bottom:12px;">Works on printed &amp; handwritten labels</div>
+    <!-- Camera / upload toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="ocrUseCamera()" id="ocr-cam-btn" style="flex:1;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📷 Use Camera</button>
+      <button onclick="document.getElementById('ocr-file-inp').click()" style="flex:1;padding:11px;background:#6b7280;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🖼 Upload Photo</button>
+    </div>
+    <input type="file" id="ocr-file-inp" accept="image/*" capture="environment" style="display:none;" onchange="ocrFromFile(this)">
+    <!-- Camera preview -->
+    <div id="ocr-cam-wrap" style="display:none;position:relative;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+      <video id="ocr-vid" autoplay playsinline muted style="width:100%;border-radius:10px;display:block;"></video>
+      <div style="position:absolute;inset:8px;border:2px dashed rgba(14,165,233,.8);border-radius:8px;pointer-events:none;"></div>
+    </div>
+    <!-- Capture btn -->
+    <div id="ocr-cam-capture" style="display:none;margin-bottom:10px;">
+      <button onclick="ocrCaptureFromCam()" style="width:100%;padding:14px;background:#CC0000;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">📸 Capture &amp; Read</button>
+    </div>
+    <!-- Status -->
+    <div id="ocr-modal-status" style="text-align:center;font-size:13px;color:#555;padding:8px;min-height:28px;"></div>
+    <!-- Preview of captured image -->
+    <canvas id="ocr-preview" style="display:none;width:100%;border-radius:8px;margin-bottom:10px;"></canvas>
+    <!-- Results -->
+    <div id="ocr-results" style="display:none;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:#166534;">✅ Extracted Fields — tap to edit</div>
+      <div id="ocr-fields"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="applyOCRResults()" style="flex:2;padding:13px;background:#CC0000;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">✅ Apply to Form</button>
+        <button onclick="closeOCRModal()" style="flex:1;padding:13px;background:#e5e5ea;color:#1a1a1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+    <button onclick="closeOCRModal()" style="width:100%;padding:12px;background:#f5f5f5;color:#555;border:none;border-radius:10px;font-size:14px;cursor:pointer;margin-top:8px;">✕ Close</button>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════ CONSTANTS ═══════════════════════════════════════
-var COURIERS = ["DTDC","Delhivery","Blue Dart","Mahindra Rivigo","XpressBees","Other"];
+var COURIERS = ["DTDC","Delhivery","Blue Dart","Ekart","XpressBees","Other"];
 var MODES    = ["Surface","Air","Express"];
 var CONTENTS = ["Documents","Electronics","Clothing","Books","Medicine","Gift Items","Other"];
 var PAYMENT  = ["Cash","Online / UPI","Credit (Account)"];
@@ -509,6 +546,12 @@ function bookingHTML() {
   h += '<div class="pin-err" id="pin-err"></div>';
   h += '</div></div>';
 
+  // OCR scan address button
+  h += '<div style="background:#f0f9ff;border:1.5px dashed #0ea5e9;border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">';
+  h += '<div style="flex:1;font-size:12px;color:#0369a1;"><b>📷 Scan Address Label</b><br><span style="opacity:.8;">Auto-fill receiver name, phone &amp; pincode from printed or handwritten label</span></div>';
+  h += '<button onclick="openOCRCapture()" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">📷 Scan</button>';
+  h += '</div>';
+
   // Sender
   h += '<div class="r2">';
   h += '<div class="fd"><label class="lbl">Sender Name</label><input type="text" placeholder="Full name" value="' + esc(F.senderName) + '" oninput="F.senderName=this.value;"></div>';
@@ -592,47 +635,23 @@ function doPrint() {
 
 function waSender() {
   if (!SAVED || !SAVED.senderPhone) return;
-  var phone = SAVED.senderPhone.replace(/\D/g,"");
+  var r = SAVED;
+  var phone = r.senderPhone.replace(/\D/g,"");
   if (phone.length === 10) phone = "91" + phone;
-
-  var btn = document.querySelector('[onclick="waSender()"]');
-  if (btn) btn.textContent = "⏳ Generating image…";
-
-  // Draw receipt canvas fresh
-  var c = makeReceiptCanvas(SAVED);
-
-  // Wait for QR / images to load then share
-  setTimeout(function(){
-    c.toBlob(function(blob){
-      if (btn) btn.textContent = "💬 Send to Sender on WhatsApp";
-      var file = new File([blob], "SKL_" + SAVED.awb + ".png", { type:"image/png" });
-
-      // Try Web Share API (Android Chrome) — shares image + opens WA
-      if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
-        navigator.share({
-          title: "SK Logistics Receipt – " + SAVED.awb,
-          text: "Your booking is confirmed. AWB: " + SAVED.awb + "\nFrom: SK Logistics, Hyderabad",
-          files: [file]
-        }).catch(function(){ fallbackSenderShare(c, phone); });
-      } else {
-        fallbackSenderShare(c, phone);
-      }
-    }, "image/png");
-  }, 900);
-}
-
-function fallbackSenderShare(canvas, phone) {
-  // Download image then open WA chat with sender number
-  var a = document.createElement("a");
-  a.href = canvas.toDataURL("image/png");
-  a.download = "SKL_Receipt_" + SAVED.awb + ".png";
-  a.click();
-  toast("Image saved! Opening sender's WhatsApp chat…", 3500);
-  setTimeout(function(){
-    window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(
-      "Dear " + (SAVED.senderName||"Customer") + ", your shipment (AWB: " + SAVED.awb + ") has been booked via SK Logistics. Please find the receipt image above."
-    ), "_blank");
-  }, 1500);
+  var msg =
+    "Dear *" + (r.senderName||"Customer") + "*, your shipment has been booked via *SK Logistics, Hyderabad*." +
+    "\n\n" +
+    "\uD83D\uDCE6 *AWB:* " + r.awb + "\n" +
+    "\uD83D\uDE9A *Courier:* " + r.courier + " (" + r.mode + ")\n" +
+    "\uD83D\uDCCD *From:* Hyderabad \u2013 500064\n" +
+    "\uD83D\uDCCD *To:* " + r.destCity + (r.destPin ? " \u2013 " + r.destPin : "") + "\n" +
+    "\uD83D\uDC64 *Receiver:* " + (r.receiverName||"\u2014") + (r.receiverPhone ? " | " + r.receiverPhone : "") + "\n" +
+    "\u2696\uFE0F *Weight:* " + r.weight + " kg | *Pieces:* " + r.pieces + "\n" +
+    "\uD83D\uDCCB *Contents:* " + r.contents + "\n" +
+    "\uD83D\uDCB3 *Payment:* " + r.payment + " | \u20B9" + (r.charges||"0") + "\n\n" +
+    "\u26A0\uFE0F _No gold/silver/cash accepted. Max liability \u20B91,500 (docs) / \u20B92,500 (non-docs)._\n\n" +
+    "Thank you for choosing *SK Logistics* \u260E 8919855159";
+  window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(msg), "_blank");
 }
 
 // ═══════════════════════ SHARE ════════════════════════════════════════════
@@ -976,6 +995,189 @@ document.getElementById("sharemb").addEventListener("click", function(e){ if(e.t
 
 // Init
 renderBooking(); updBadge();
+
+// ═══════════════════════ ADDRESS OCR ═════════════════════════════════════
+var OCR_CAM_STREAM = null;
+var OCR_EXTRACTED  = {};
+
+function openOCRCapture() {
+  document.getElementById("ocr-modal").classList.add("open");
+  document.getElementById("ocr-results").style.display = "none";
+  document.getElementById("ocr-modal-status").textContent = "";
+  document.getElementById("ocr-preview").style.display = "none";
+  document.getElementById("ocr-cam-wrap").style.display = "none";
+  document.getElementById("ocr-cam-capture").style.display = "none";
+}
+function closeOCRModal() {
+  stopOCRCam();
+  document.getElementById("ocr-modal").classList.remove("open");
+}
+function stopOCRCam() {
+  if (OCR_CAM_STREAM) { OCR_CAM_STREAM.getTracks().forEach(function(t){ t.stop(); }); OCR_CAM_STREAM = null; }
+}
+
+function ocrUseCamera() {
+  document.getElementById("ocr-cam-wrap").style.display = "block";
+  document.getElementById("ocr-cam-capture").style.display = "block";
+  document.getElementById("ocr-modal-status").textContent = "Point camera at label and tap Capture";
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment", width:{ideal:1920}, height:{ideal:1080} } })
+  .then(function(stream){
+    OCR_CAM_STREAM = stream;
+    var v = document.getElementById("ocr-vid");
+    v.srcObject = stream; v.play();
+  }).catch(function(){ document.getElementById("ocr-modal-status").textContent = "Camera not available. Use Upload instead."; });
+}
+
+function ocrCaptureFromCam() {
+  var v = document.getElementById("ocr-vid");
+  if (!v.videoWidth) { toast("Camera not ready"); return; }
+  var c = document.createElement("canvas");
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v, 0, 0);
+  stopOCRCam();
+  document.getElementById("ocr-cam-wrap").style.display = "none";
+  document.getElementById("ocr-cam-capture").style.display = "none";
+  runOCR(c);
+}
+
+function ocrFromFile(inp) {
+  if (!inp.files || !inp.files[0]) return;
+  var img = new Image();
+  var url = URL.createObjectURL(inp.files[0]);
+  img.onload = function(){
+    var c = document.createElement("canvas");
+    c.width = img.width; c.height = img.height;
+    c.getContext("2d").drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    runOCR(c);
+  };
+  img.src = url;
+}
+
+function runOCR(canvas) {
+  var st = document.getElementById("ocr-modal-status");
+  var prev = document.getElementById("ocr-preview");
+
+  // Show preview
+  prev.width = canvas.width; prev.height = canvas.height;
+  prev.style.display = "block";
+  prev.getContext("2d").drawImage(canvas, 0, 0);
+
+  st.textContent = "⏳ Reading text…";
+
+  if (!window.Tesseract) { st.textContent = "⏳ Loading OCR engine…"; }
+
+  function doRecognize() {
+    if (!window.Tesseract) { setTimeout(doRecognize, 500); return; }
+    // Use multiple PSM modes and pick best result
+    Promise.all([
+      Tesseract.recognize(canvas, "eng", {
+        logger: function(m){ if(m.progress && m.status==="recognizing text") st.textContent = "🔍 Reading… " + Math.round(m.progress*100) + "%"; }
+      })
+    ]).then(function(results){
+      var text = results[0].data.text;
+      showOCRResults(text);
+    }).catch(function(e){
+      st.textContent = "❌ OCR failed. Try with better lighting.";
+    });
+  }
+  doRecognize();
+}
+
+function showOCRResults(text) {
+  var st = document.getElementById("ocr-modal-status");
+  st.textContent = "✅ Done — review and apply";
+
+  // Parse extracted fields
+  OCR_EXTRACTED = {};
+
+  // Pincode — 6 digits
+  var pin = text.match(/([1-9][0-9]{5})/);
+  if (pin) OCR_EXTRACTED.destPin = pin[1];
+
+  // Phone — 10 digit Indian mobile
+  var ph = text.match(/([6-9][0-9]{9})/);
+  if (ph) OCR_EXTRACTED.receiverPhone = ph[1];
+
+  // Receiver name — look for keywords first
+  var namePatterns = [
+    /(?:To|Receiver|Consignee|Ship To|Deliver To|Recvr|Attn)\s*[:\-]?\s*([A-Za-z][A-Za-z\s\.]{3,40})/i,
+    /(?:Name)\s*[:\-]\s*([A-Za-z][A-Za-z\s\.]{3,40})/i
+  ];
+  var gotName = false;
+  for (var i=0; i<namePatterns.length; i++) {
+    var m = text.match(namePatterns[i]);
+    if (m && m[1] && m[1].trim().length > 3) {
+      OCR_EXTRACTED.receiverName = titleCase(m[1].trim().replace(/\s+/g," "));
+      gotName = true; break;
+    }
+  }
+  if (!gotName) {
+    // Fallback: find a line that looks like a name (2+ words, only letters)
+    var lines = text.split("\n").map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 3; });
+    for (var j=0; j<lines.length; j++) {
+      if (/^[A-Za-z][A-Za-z\s\.]{4,35}$/.test(lines[j]) && lines[j].split(/\s+/).length >= 2) {
+        OCR_EXTRACTED.receiverName = titleCase(lines[j].replace(/\s+/g," "));
+        break;
+      }
+    }
+  }
+
+  // City
+  var cm = text.match(/(?:City|Dist(?:rict)?|Destination?)\s*[:\-]\s*([A-Za-z][A-Za-z\s]{2,20})/i);
+  if (cm && cm[1]) OCR_EXTRACTED.destCity = titleCase(cm[1].trim());
+
+  // If pincode found but no city, look it up
+  if (OCR_EXTRACTED.destPin && !OCR_EXTRACTED.destCity) {
+    var city = pinLookup(OCR_EXTRACTED.destPin);
+    if (city) OCR_EXTRACTED.destCity = city;
+  }
+
+  // Build results UI
+  var fieldsDiv = document.getElementById("ocr-fields");
+  var FIELD_LABELS = { receiverName:"Receiver Name", receiverPhone:"Receiver Phone", destPin:"Pincode", destCity:"Destination City" };
+  var h = "";
+  var count = 0;
+  var keys = ["receiverName","receiverPhone","destPin","destCity"];
+  for (var ki=0; ki<keys.length; ki++) {
+    var k = keys[ki];
+    var val = OCR_EXTRACTED[k] || "";
+    var col = val ? "border-color:#22c55e;" : "border-color:#f87171;";
+    h += "<div class='fd'><label class='lbl'>" + FIELD_LABELS[k] + "</label>";
+    h += "<input type='text' value='" + esc(val) + "' style='" + col + "' ";
+    h += "<input type='text' value='" + esc(val) + "' style='" + col + "' data-ocr='" + k + "' oninput='ocrFieldEdit(this)'></div>";
+    h += "</div>";
+    if (val) count++;
+  }
+
+  if (count === 0) {
+    h = '<div style="text-align:center;padding:16px;color:#92400e;background:#fff8e1;border-radius:8px;">⚠️ Could not extract any fields.<br>Try better lighting or a closer photo.</div>';
+    document.getElementById("ocr-results").style.display = "block";
+    fieldsDiv.innerHTML = h;
+    return;
+  }
+
+  fieldsDiv.innerHTML = h;
+  document.getElementById("ocr-results").style.display = "block";
+  st.textContent = "✅ " + count + " field" + (count>1?"s":"") + " extracted — edit if needed";
+}
+
+function ocrFieldEdit(el) {
+  var k = el.getAttribute("data-ocr");
+  if (k) OCR_EXTRACTED[k] = el.value;
+}
+
+function applyOCRResults() {
+  Object.keys(OCR_EXTRACTED).forEach(function(k){
+    if (OCR_EXTRACTED[k]) F[k] = OCR_EXTRACTED[k];
+  });
+  closeOCRModal();
+  toast("✅ Fields applied to form", 2500);
+  renderBooking();
+}
+
+// Close OCR modal on bg tap
+document.getElementById("ocr-modal").addEventListener("click", function(e){ if(e.target===this) closeOCRModal(); });
 </script>
 
 <script async src="https://unpkg.com/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
