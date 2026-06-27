@@ -119,27 +119,13 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <!-- SCANNER -->
 <div id="scanner">
   <button class="scan-close" onclick="closeScan()">✕</button>
-  <div id="qwrap"></div>
-  <!-- Barcode UI -->
-  <div class="scan-ui" id="bc-ui">
+  <video id="scan-vid" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;"></video>
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:5;">
     <div class="scan-frame"><div class="scan-line"></div></div>
-    <div class="scan-hint" id="shint">Point camera at AWB barcode — keep steady</div>
+    <div id="shint" style="color:#fff;font-size:14px;font-weight:700;margin-top:18px;text-align:center;padding:0 20px;text-shadow:0 2px 6px rgba(0,0,0,.9);">Point camera at AWB barcode</div>
   </div>
-  <!-- OCR: full-screen dashed border -->
-  <div class="ocr-frame" id="ocrf"></div>
-  <!-- OCR: tap anywhere to capture -->
-  <button class="ocr-tap" id="ocr-tap" onclick="doOCR()">
-    <div class="ocr-ring">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M6.93 6.93A8 8 0 1 0 17.07 17.07"/><path d="M2 2l20 20"/></svg>
-    </div>
-    <div style="color:#fff;font-size:17px;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,.9);">📸 Tap Anywhere to Capture</div>
-    <div style="color:rgba(255,255,255,.8);font-size:13px;text-shadow:0 1px 3px rgba(0,0,0,.8);">Point label at full screen first</div>
-  </button>
-  <div id="scan-flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:7;transition:opacity .15s;"></div>
-  <div class="ocr-bar" id="ocrbar"></div>
-  <div class="scan-btns">
-    <button class="on" id="sb-bc" style="flex:1;">📦 Scanning for AWB Barcode…</button>
-  </div>
+  <div id="scan-flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:7;transition:opacity .2s;"></div>
+  <div id="ssbar" style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);color:#fff;padding:12px 16px;text-align:center;font-size:14px;font-weight:700;z-index:6;">📷 Starting camera…</div>
 </div>
 
 <!-- SHARE MODAL -->
@@ -161,47 +147,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <canvas id="tmpc" style="display:none;"></canvas>
 <div id="parea" style="display:none;"></div>
 
-<!-- OCR CAPTURE MODAL -->
-<div class="mbg" id="ocr-modal">
-  <div class="mbox" style="max-height:95vh;">
-    <div class="mhandle"></div>
-    <div style="font-weight:800;font-size:17px;margin-bottom:4px;">📷 Scan Address Label</div>
-    <div style="font-size:13px;color:#888;margin-bottom:12px;">Works on printed &amp; handwritten labels</div>
-    <!-- Camera / upload toggle -->
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <button onclick="ocrUseCamera()" id="ocr-cam-btn" style="flex:1;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📷 Use Camera</button>
-      <button onclick="document.getElementById('ocr-file-inp').click()" style="flex:1;padding:11px;background:#6b7280;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🖼 Upload Photo</button>
-    </div>
-    <input type="file" id="ocr-file-inp" accept="image/*" capture="environment" style="display:none;" onchange="ocrFromFile(this)">
-    <!-- Camera preview -->
-    <div id="ocr-cam-wrap" style="display:none;position:relative;border-radius:10px;overflow:hidden;margin-bottom:10px;">
-      <video id="ocr-vid" autoplay playsinline muted style="width:100%;border-radius:10px;display:block;"></video>
-      <div style="position:absolute;inset:8px;border:2px dashed rgba(14,165,233,.8);border-radius:8px;pointer-events:none;"></div>
-    </div>
-    <!-- Capture btn -->
-    <div id="ocr-cam-capture" style="display:none;margin-bottom:10px;">
-      <button onclick="ocrCaptureFromCam()" style="width:100%;padding:14px;background:#CC0000;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">📸 Capture &amp; Read</button>
-    </div>
-    <!-- Status -->
-    <div id="ocr-modal-status" style="text-align:center;font-size:13px;color:#555;padding:8px;min-height:28px;"></div>
-    <!-- Preview of captured image -->
-    <canvas id="ocr-preview" style="display:none;width:100%;border-radius:8px;margin-bottom:10px;"></canvas>
-    <!-- Results -->
-    <div id="ocr-results" style="display:none;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:#166534;">✅ Extracted Fields — tap to edit</div>
-      <div id="ocr-fields"></div>
-      <div style="display:flex;gap:8px;margin-top:10px;">
-        <button onclick="applyOCRResults()" style="flex:2;padding:13px;background:#CC0000;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">✅ Apply to Form</button>
-        <button onclick="closeOCRModal()" style="flex:1;padding:13px;background:#e5e5ea;color:#1a1a1a;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Cancel</button>
-      </div>
-    </div>
-    <button onclick="closeOCRModal()" style="width:100%;padding:12px;background:#f5f5f5;color:#555;border:none;border-radius:10px;font-size:14px;cursor:pointer;margin-top:8px;">✕ Close</button>
-  </div>
-</div>
-
 <script>
 // ═══════════════════════ CONSTANTS ═══════════════════════════════════════
-var COURIERS = ["DTDC","Delhivery","Blue Dart","MAHINDRA RIVIGO","XpressBees","Other"];
+var COURIERS = ["DTDC","Delhivery","Blue Dart","Mahindra Rivigo","XpressBees","Other"];
 var MODES    = ["Surface","Air","Express"];
 var CONTENTS = ["Documents","Electronics","Clothing","Books","Medicine","Gift Items","Other"];
 var PAYMENT  = ["Cash","Online / UPI","Credit (Account)"];
@@ -334,129 +282,152 @@ function makeReceiptCanvas(r) {
   var DPR = Math.min(window.devicePixelRatio || 1, 2);
   var W = 340;
   var hasRem = r.remarks && r.remarks.trim();
-  var H = 80 + 110 + 34 + 70 + 72 + 50 + 44 + (hasRem ? 30 : 0) + 100 + 122;
+  // Heights: header(70) + awb+bc(110) + date(28) + route(68) + sender/rcvr(70) + details(50) + charges(40) + remarks(28?) + footer(70) + decl(110)
+  var H = 70 + 110 + 28 + 68 + 70 + 50 + 40 + (hasRem?28:0) + 70 + 110;
   var cv = document.createElement("canvas");
-  cv.width = W * DPR; cv.height = H * DPR;
-  cv.style.width = W + "px"; cv.style.height = H + "px";
+  cv.width = W*DPR; cv.height = H*DPR;
+  cv.style.width = W+"px"; cv.style.height = H+"px";
   var ctx = cv.getContext("2d");
   ctx.scale(DPR, DPR);
 
-  function dashed(y) { ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle="#ddd"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); ctx.restore(); }
-  function solid(y, c) { ctx.strokeStyle=c||"#e0e0e0"; ctx.lineWidth=1; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-  function vline(x, y1, y2) { ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle="#ddd"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y2); ctx.stroke(); ctx.restore(); }
-
-  var y = 0;
-
-  // Header
-  ctx.fillStyle = RED; ctx.fillRect(0, 0, W, 80);
-  ctx.fillStyle = "#fff"; ctx.textAlign = "center";
-  ctx.font = "bold 22px Arial"; ctx.fillText("SK LOGISTICS", W/2, 30);
-  ctx.font = "11px Arial"; ctx.fillText("Bahadurpura, Hyderabad \u2013 500064", W/2, 48);
-  ctx.fillText("Authorized " + (r.courier||"") + " Franchise", W/2, 65);
-  y = 80;
-
-  // AWB + Barcode
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, y, W, 110);
-  ctx.fillStyle = "#888"; ctx.font = "11px Arial"; ctx.textAlign = "center";
-  ctx.fillText("AWB NUMBER", W/2, y+17);
-  ctx.fillStyle = DARK; ctx.font = "bold 17px Arial";
-  ctx.fillText(r.awb || "", W/2, y+37);
-  if (r.awb) drawBCctx(ctx, r.awb, 16, y+46, W-32, 40);
-  dashed(y+110); y += 110;
-
-  // Date / Mode
-  ctx.fillStyle = "#fef2f2"; ctx.fillRect(0, y, W, 34);
-  ctx.fillStyle = DARK; ctx.font = "12px Arial"; ctx.textAlign = "left";
-  ctx.fillText("Date: " + fmtDT(new Date(r.dateTime)), 12, y+21);
-  ctx.textAlign = "right";
-  ctx.fillText("Mode: " + (r.mode||""), W-12, y+21);
-  solid(y+34); y += 34;
-
-  // Route
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, y, W, 70);
-  ctx.fillStyle = "#888"; ctx.font = "10px Arial"; ctx.textAlign = "center";
-  ctx.fillText("ORIGIN", W/4, y+17);
-  ctx.fillStyle = RED; ctx.font = "bold 14px Arial"; ctx.fillText("Hyderabad", W/4, y+36);
-  ctx.fillStyle = "#555"; ctx.font = "11px Arial"; ctx.fillText("500064", W/4, y+52);
-  ctx.fillStyle = RED; ctx.font = "bold 24px Arial"; ctx.fillText("\u2192", W/2, y+42);
-  ctx.fillStyle = "#888"; ctx.font = "10px Arial"; ctx.fillText("DESTINATION", 3*W/4, y+17);
-  ctx.fillStyle = DARK; ctx.font = "bold 14px Arial"; ctx.fillText(clip(r.destCity||"\u2014",18), 3*W/4, y+36);
-  ctx.fillStyle = "#555"; ctx.font = "11px Arial"; ctx.fillText(r.destPin||"", 3*W/4, y+52);
-  dashed(y+70); y += 70;
-
-  // Sender / Receiver
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, y, W, 72);
-  vline(W/2, y, y+72);
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#888"; ctx.font = "10px Arial"; ctx.fillText("SENDER", 12, y+16);
-  ctx.fillStyle = DARK; ctx.font = "bold 13px Arial"; ctx.fillText(clip(r.senderName||"\u2014",16), 12, y+34);
-  ctx.fillStyle = "#555"; ctx.font = "12px Arial"; ctx.fillText(r.senderPhone||"", 12, y+52);
-  ctx.fillStyle = "#888"; ctx.font = "10px Arial"; ctx.fillText("RECEIVER", W/2+12, y+16);
-  ctx.fillStyle = DARK; ctx.font = "bold 13px Arial"; ctx.fillText(clip(r.receiverName||"\u2014",16), W/2+12, y+34);
-  ctx.fillStyle = "#555"; ctx.font = "12px Arial"; ctx.fillText(r.receiverPhone||"", W/2+12, y+52);
-  dashed(y+72); y += 72;
-
-  // Details
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, y, W, 50);
-  var dcols = [W/6, W/2, 5*W/6];
-  var dlbls = ["Weight","Pieces","Contents"];
-  var dvals = [(r.weight||"0")+" kg", r.pieces||"1", r.contents||""];
-  for (var i = 0; i < 3; i++) {
-    if (i > 0) vline(W/3*i, y, y+50);
-    ctx.fillStyle = "#888"; ctx.font = "10px Arial"; ctx.textAlign = "center";
-    ctx.fillText(dlbls[i], dcols[i], y+17);
-    ctx.fillStyle = DARK; ctx.font = "bold 14px Arial";
-    ctx.fillText(dvals[i], dcols[i], y+38);
+  // ── helpers ──────────────────────────────────────────────────────────
+  function line(y) {
+    ctx.save(); ctx.setLineDash([3,3]); ctx.strokeStyle="#999";
+    ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); ctx.restore();
   }
-  dashed(y+50); y += 50;
-
-  // Charges
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, y, W, 44);
-  ctx.fillStyle = DARK; ctx.font = "13px Arial"; ctx.textAlign = "left";
-  ctx.fillText("Payment: " + (r.payment||""), 12, y+27);
-  ctx.fillStyle = RED; ctx.font = "bold 20px Arial"; ctx.textAlign = "right";
-  ctx.fillText("\u20B9 " + (r.charges||"0.00"), W-12, y+28);
-  dashed(y+44); y += 44;
-
-  // Remarks
-  if (hasRem) {
-    ctx.fillStyle = "#fff"; ctx.fillRect(0, y, W, 30);
-    ctx.fillStyle = "#555"; ctx.font = "12px Arial"; ctx.textAlign = "left";
-    ctx.fillText("Remarks: " + clip(r.remarks, 40), 12, y+20);
-    dashed(y+30); y += 30;
+  function sline(y) {
+    ctx.save(); ctx.setLineDash([]); ctx.strokeStyle="#000";
+    ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); ctx.restore();
+  }
+  function vline(x,y1,y2) {
+    ctx.save(); ctx.setLineDash([3,3]); ctx.strokeStyle="#999";
+    ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y2); ctx.stroke(); ctx.restore();
   }
 
-  // Footer
-  ctx.fillStyle = DARK; ctx.fillRect(0, y, W, 100);
-  ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.textAlign = "left";
-  ctx.fillText("Thank you for choosing", 12, y+20);
-  ctx.fillStyle = "#ff6b6b"; ctx.font = "bold 16px Arial"; ctx.fillText("SK LOGISTICS", 12, y+40);
-  ctx.fillStyle = "#aaa"; ctx.font = "10px Arial"; ctx.fillText("Safe \u2022 Secure \u2022 Reliable", 12, y+57);
-  ctx.fillStyle = "#ccc"; ctx.font = "10px Arial"; ctx.fillText("\u260E 8919855159  |  8886507472", 12, y+73);
+  // White background
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
 
-  // Declaration box
-  y += 100;
-  ctx.fillStyle = "#fff8e1"; ctx.fillRect(0, y, W, 122);
-  ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1; ctx.setLineDash([]);
-  ctx.strokeRect(8, y+5, W-16, 112);
-  ctx.fillStyle = "#92400e"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
-  ctx.fillText("\u26A0  TERMS & DECLARATION  \u26A0", W/2, y+19);
-  ctx.textAlign = "left"; ctx.fillStyle = "#555"; ctx.font = "9px Arial";
-  var decl = [
-    "Consignor declares: No gold, silver, cash, currency, jewellery,",
-    "dangerous or prohibited goods are included in this shipment.",
-    "SK Logistics is only a SERVICE PROVIDER / carrier agent.",
+  var y=0;
+
+  // ── HEADER — white bg, thick border, black text ───────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,70);
+  ctx.strokeStyle="#000"; ctx.lineWidth=2; ctx.setLineDash([]);
+  ctx.strokeRect(1,1,W-2,68);
+  ctx.fillStyle="#000"; ctx.textAlign="center";
+  ctx.font="bold 20px Arial"; ctx.fillText("SK LOGISTICS",W/2,26);
+  ctx.font="10px Arial"; ctx.fillText("Bahadurpura, Hyderabad \u2013 500064",W/2,42);
+  ctx.font="9px Arial"; ctx.fillText("Authorized "+(r.courier||"")+" Franchise | AWB Receipt",W/2,57);
+  sline(68); y=70;
+
+  // ── AWB + BARCODE ─────────────────────────────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,110);
+  ctx.fillStyle="#000"; ctx.font="9px Arial"; ctx.textAlign="center";
+  ctx.fillText("AWB NUMBER",W/2,y+14);
+  ctx.font="bold 18px Arial"; ctx.fillText(r.awb||"",W/2,y+33);
+  if(r.awb) drawBCctx(ctx,r.awb,10,y+42,W-20,42);
+  line(y+110); y+=110;
+
+  // ── DATE / MODE ───────────────────────────────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,28);
+  ctx.fillStyle="#000"; ctx.font="11px Arial"; ctx.textAlign="left";
+  ctx.fillText("Date: "+fmtDT(new Date(r.dateTime)),10,y+18);
+  ctx.textAlign="right"; ctx.fillText("Mode: "+(r.mode||""),W-10,y+18);
+  line(y+28); y+=28;
+
+  // ── ROUTE ─────────────────────────────────────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,68);
+  // Origin box
+  ctx.strokeStyle="#000"; ctx.lineWidth=0.8; ctx.setLineDash([]);
+  ctx.strokeRect(6,y+4,W/2-10,58);
+  ctx.fillStyle="#000"; ctx.font="9px Arial"; ctx.textAlign="center";
+  ctx.fillText("FROM",W/4,y+17);
+  ctx.font="bold 13px Arial"; ctx.fillText("Hyderabad",W/4,y+34);
+  ctx.font="10px Arial"; ctx.fillText("500064",W/4,y+50);
+  // Arrow
+  ctx.font="bold 18px Arial"; ctx.fillText("\u2192",W/2,y+38);
+  // Dest box
+  ctx.strokeRect(W/2+4,y+4,W/2-10,58);
+  ctx.font="9px Arial"; ctx.fillText("TO",3*W/4,y+17);
+  ctx.font="bold 13px Arial"; ctx.fillText(clip(r.destCity||"\u2014",16),3*W/4,y+34);
+  ctx.font="10px Arial"; ctx.fillText(r.destPin||"",3*W/4,y+50);
+  line(y+68); y+=68;
+
+  // ── SENDER / RECEIVER ─────────────────────────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,70);
+  vline(W/2,y,y+70);
+  ctx.textAlign="left"; ctx.fillStyle="#000";
+  ctx.font="bold 9px Arial"; ctx.fillText("SENDER",10,y+14);
+  ctx.font="bold 12px Arial"; ctx.fillText(clip(r.senderName||"\u2014",17),10,y+30);
+  ctx.font="11px Arial"; ctx.fillText(r.senderPhone||"",10,y+46);
+  ctx.font="bold 9px Arial"; ctx.fillText("RECEIVER",W/2+10,y+14);
+  ctx.font="bold 12px Arial"; ctx.fillText(clip(r.receiverName||"\u2014",17),W/2+10,y+30);
+  ctx.font="11px Arial"; ctx.fillText(r.receiverPhone||"",W/2+10,y+46);
+  line(y+70); y+=70;
+
+  // ── SHIPMENT DETAILS ──────────────────────────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,50);
+  var dc=[W/6,W/2,5*W/6];
+  var dl=["Weight","Pieces","Contents"];
+  var dv=[(r.weight||"0")+" kg",r.pieces||"1",r.contents||""];
+  for(var i=0;i<3;i++){
+    if(i>0) vline(W/3*i,y,y+50);
+    ctx.fillStyle="#000"; ctx.font="9px Arial"; ctx.textAlign="center";
+    ctx.fillText(dl[i],dc[i],y+16);
+    ctx.font="bold 13px Arial"; ctx.fillText(dv[i],dc[i],y+37);
+  }
+  line(y+50); y+=50;
+
+  // ── CHARGES ───────────────────────────────────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,40);
+  ctx.fillStyle="#000"; ctx.font="12px Arial"; ctx.textAlign="left";
+  ctx.fillText("Payment: "+(r.payment||""),10,y+25);
+  ctx.font="bold 18px Arial"; ctx.textAlign="right";
+  ctx.fillText("\u20B9 "+(r.charges||"0.00"),W-10,y+27);
+  line(y+40); y+=40;
+
+  // ── REMARKS ───────────────────────────────────────────────────────
+  if(hasRem){
+    ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,28);
+    ctx.fillStyle="#000"; ctx.font="11px Arial"; ctx.textAlign="left";
+    ctx.fillText("Remarks: "+clip(r.remarks,45),10,y+19);
+    line(y+28); y+=28;
+  }
+
+  // ── FOOTER — white, black text, bordered ──────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,70);
+  sline(y);
+  ctx.fillStyle="#000"; ctx.font="bold 13px Arial"; ctx.textAlign="left";
+  ctx.fillText("Thank you for choosing SK LOGISTICS",10,y+18);
+  ctx.font="10px Arial"; ctx.fillText("Safe \u2022 Secure \u2022 Reliable",10,y+34);
+  ctx.font="10px Arial"; ctx.fillText("\u260E 8919855159  |  8886507472",10,y+50);
+  ctx.textAlign="right"; ctx.font="9px Arial"; ctx.fillStyle="#444";
+  ctx.fillText("Bahadurpura, Hyderabad \u2013 500064",W-10,y+50);
+  sline(y+68); y+=70;
+
+  // ── DECLARATION ───────────────────────────────────────────────────
+  ctx.fillStyle="#fff"; ctx.fillRect(0,y,W,110);
+  ctx.strokeStyle="#000"; ctx.lineWidth=0.8; ctx.setLineDash([2,2]);
+  ctx.strokeRect(6,y+4,W-12,102);
+  ctx.setLineDash([]);
+  ctx.fillStyle="#000"; ctx.font="bold 9px Arial"; ctx.textAlign="center";
+  ctx.fillText("** TERMS & DECLARATION **",W/2,y+18);
+  ctx.textAlign="left"; ctx.font="8.5px Arial";
+  var decl=[
+    "Consignor declares: No gold, silver, cash, jewellery or prohibited",
+    "goods are included in this shipment.",
+    "SK Logistics is a SERVICE PROVIDER / carrier agent only.",
     "Max liability: Documents \u20B91,500 | Non-Documents \u20B92,500 (owner risk).",
     "For higher coverage, opt for Carrier Risk at time of booking.",
     "Consignor is fully liable for accuracy of contents declared.",
     "Any loss/damage in transit: liability limited to above amounts."
   ];
-  for (var di = 0; di < decl.length; di++) {
-    ctx.fillText(decl[di], 14, y + 32 + di * 13);
+  for(var di=0;di<decl.length;di++){
+    ctx.fillText(decl[di],12,y+32+di*11);
   }
 
   return cv;
 }
+
 
 // ═══════════════════════ BOOKING PAGE ════════════════════════════════════
 function renderBooking() {
@@ -546,12 +517,6 @@ function bookingHTML() {
   h += '<div class="pin-err" id="pin-err"></div>';
   h += '</div></div>';
 
-  // OCR scan address button
-  h += '<div style="background:#f0f9ff;border:1.5px dashed #0ea5e9;border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">';
-  h += '<div style="flex:1;font-size:12px;color:#0369a1;"><b>📷 Scan Address Label</b><br><span style="opacity:.8;">Auto-fill receiver name, phone &amp; pincode from printed or handwritten label</span></div>';
-  h += '<button onclick="openOCRCapture()" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">📷 Scan</button>';
-  h += '</div>';
-
   // Sender
   h += '<div class="r2">';
   h += '<div class="fd"><label class="lbl">Sender Name</label><input type="text" placeholder="Full name" value="' + esc(F.senderName) + '" oninput="F.senderName=this.value;"></div>';
@@ -634,25 +599,25 @@ function doPrint() {
 }
 
 function waSender() {
-  if (!SAVED || !SAVED.senderPhone) return;
-  var r = SAVED;
-  var phone = r.senderPhone.replace(/\D/g,"");
-  if (phone.length === 10) phone = "91" + phone;
-  var msg =
-    "Dear *" + (r.senderName||"Customer") + "*, your shipment has been booked via *SK Logistics, Hyderabad*." +
-    "\n\n" +
-    "\uD83D\uDCE6 *AWB:* " + r.awb + "\n" +
-    "\uD83D\uDE9A *Courier:* " + r.courier + " (" + r.mode + ")\n" +
-    "\uD83D\uDCCD *From:* Hyderabad \u2013 500064\n" +
-    "\uD83D\uDCCD *To:* " + r.destCity + (r.destPin ? " \u2013 " + r.destPin : "") + "\n" +
-    "\uD83D\uDC64 *Receiver:* " + (r.receiverName||"\u2014") + (r.receiverPhone ? " | " + r.receiverPhone : "") + "\n" +
-    "\u2696\uFE0F *Weight:* " + r.weight + " kg | *Pieces:* " + r.pieces + "\n" +
-    "\uD83D\uDCCB *Contents:* " + r.contents + "\n" +
-    "\uD83D\uDCB3 *Payment:* " + r.payment + " | \u20B9" + (r.charges||"0") + "\n\n" +
-    "\u26A0\uFE0F _No gold/silver/cash accepted. Max liability \u20B91,500 (docs) / \u20B92,500 (non-docs)._\n\n" +
-    "Thank you for choosing *SK Logistics* \u260E 8919855159";
-  window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(msg), "_blank");
+  if(!SAVED||!SAVED.senderPhone) return;
+  var r=SAVED;
+  var phone=r.senderPhone.replace(/\D/g,"");
+  if(phone.length===10) phone="91"+phone;
+  var msg=
+    "Dear *"+(r.senderName||"Customer")+"*, your shipment is booked via *SK Logistics, Hyderabad*.\n\n"+
+    "\uD83D\uDCE6 *AWB:* "+r.awb+"\n"+
+    "\uD83D\uDE9A *Courier:* "+r.courier+" ("+r.mode+")\n"+
+    "\uD83D\uDCCD *From:* Hyderabad \u2013 500064\n"+
+    "\uD83D\uDCCD *To:* "+r.destCity+(r.destPin?" \u2013 "+r.destPin:"")+"\n"+
+    "\uD83D\uDC64 *Receiver:* "+(r.receiverName||"\u2014")+(r.receiverPhone?" | "+r.receiverPhone:"")+"\n"+
+    "\u2696\uFE0F *Weight:* "+r.weight+" kg | *Pieces:* "+r.pieces+"\n"+
+    "\uD83D\uDCCB *Contents:* "+r.contents+"\n"+
+    "\uD83D\uDCB3 *Payment:* "+r.payment+" | \u20B9"+(r.charges||"0")+"\n\n"+
+    "\u26A0\uFE0F _No gold/silver/cash accepted. Max liability \u20B91,500 (docs)/\u20B92,500 (non-docs). Consignor responsible for contents._\n\n"+
+    "Thank you for choosing *SK Logistics* \u260E 8919855159 | 8886507472";
+  window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(msg),"_blank");
 }
+
 
 // ═══════════════════════ SHARE ════════════════════════════════════════════
 function openShare() {
@@ -700,204 +665,74 @@ function doDownload() {
 // ═══════════════════════ SCANNER ══════════════════════════════════════════
 function openScan() {
   document.getElementById("scanner").classList.add("open");
-  setMode("bc");
+  startAWBCam();
 }
 function closeScan() {
-  stopQ(); stopStream(); stopOCRCamera();
+  stopAWBCam();
   document.getElementById("scanner").classList.remove("open");
-  document.getElementById("qwrap").innerHTML = "";
 }
-function stopStream() {
-  var v = document.querySelector("#qwrap video");
-  if (v && v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); }
+var _awbStream=null, _awbIv=null, _awbLast=null;
+function startAWBCam() {
+  var vid=document.getElementById("scan-vid");
+  var bar=document.getElementById("ssbar");
+  bar.textContent="📷 Starting camera…";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}})
+  .then(function(s){
+    _awbStream=s; vid.srcObject=s; vid.play();
+    bar.textContent="🔍 Scanning for AWB barcode…";
+    vid.onloadedmetadata=function(){ startBCLoop(vid); };
+  }).catch(function(e){ bar.textContent="❌ Camera denied: "+e.message; });
 }
-function setMode(m) {
-  SCAN_MODE = m;
-  document.getElementById("sb-bc").className = m==="bc" ? "on" : "";
-  document.getElementById("sb-ocr").className = m==="ocr" ? "on" : "";
-  var bcui  = document.getElementById("bc-ui");
-  var ocrf  = document.getElementById("ocrf");
-  var otap  = document.getElementById("ocr-tap");
-  var ob    = document.getElementById("ocrbar");
-  if (m==="bc") {
-    bcui.style.display = "flex";
-    ocrf.style.display = "none";
-    otap.style.display = "none";
-    ob.style.display   = "none";
-    ob.textContent     = "";
-    startQ();
-  } else {
-    stopQ();
-    bcui.style.display = "none";
-    ocrf.style.display = "block";
-    otap.style.display = "flex";
-    ob.style.display   = "block";
-    ob.textContent = OCR_READY ? "✅ Ready — tap screen to capture" : "⏳ Loading OCR engine… please wait";
-    if (!OCR_READY) initOCR();
-  }
+function stopAWBCam() {
+  if(_awbIv){clearInterval(_awbIv);_awbIv=null;}
+  if(_awbStream){_awbStream.getTracks().forEach(function(t){t.stop();});_awbStream=null;}
+  _awbLast=null;
+  var vid=document.getElementById("scan-vid"); if(vid) vid.srcObject=null;
 }
-
-function startQ() {
-  stopQ();
-  if (!window.Quagga) { setTimeout(startQ, 600); return; }
-  var wrap = document.getElementById("qwrap"); wrap.innerHTML = "";
-  Quagga.init({
-    inputStream:{ type:"LiveStream", target:wrap,
-      constraints:{ facingMode:"environment", width:{ideal:1280}, height:{ideal:720} } },
-    locator:{ patchSize:"medium", halfSample:false },
-    numOfWorkers: 2, frequency: 10,
-    decoder:{ readers:["code_128_reader","code_39_reader","ean_reader"] },
-    locate: true
-  }, function(err){
-    if (err) { document.getElementById("shint").textContent = "Camera error — check permissions"; return; }
-    Quagga.start(); QRUNNING = true;
-  });
-  Quagga.offDetected();
-  Quagga.onDetected(function(res){
-    if (SCAN_MODE !== "bc") return;
-    var code = res.codeResult && res.codeResult.code;
-    if (!code) return;
-    if (LASTSCAN === code) { onBarcode(code); } else { LASTSCAN = code; }
-  });
+function startBCLoop(vid) {
+  if(_awbIv) clearInterval(_awbIv);
+  var c=document.createElement("canvas"), ctx=c.getContext("2d");
+  _awbIv=setInterval(function(){
+    if(!vid.videoWidth||vid.paused) return;
+    c.width=vid.videoWidth; c.height=vid.videoHeight;
+    ctx.drawImage(vid,0,0);
+    scanFrame(c, ctx);
+  },300);
 }
-function stopQ() {
-  LASTSCAN = null;
-  if (QRUNNING && window.Quagga) { try{ Quagga.stop(); }catch(e){} QRUNNING = false; }
-}
-function onBarcode(text) {
-  stopQ();
-  if (navigator.vibrate) navigator.vibrate([100,50,100]);
-  var fl = document.getElementById("scan-flash");
-  fl.style.opacity = "0.5"; setTimeout(function(){ fl.style.opacity = "0"; }, 300);
-  F.awb = text;
-  setTimeout(function(){ closeScan(); toast("✅ AWB: " + text, 3000); renderBooking(); }, 500);
-}
-
-// OCR camera stream (separate from Quagga)
-var OCR_STREAM = null;
-
-function initOCR() {
-  if (OCR_WORKER || OCR_READY) return;
-  var chk = setInterval(function(){
-    if (window.Tesseract) {
-      clearInterval(chk);
-      Tesseract.createWorker("eng", 1, {
-        logger: function(m){
-          var ob = document.getElementById("ocrbar");
-          if (!ob) return;
-          if (m.status && m.progress !== undefined)
-            ob.textContent = "⏳ Loading OCR… " + Math.round(m.progress*100) + "%";
-        }
-      }).then(function(w){
-        // Fast settings: disable unnecessary features
-        return w.setParameters({
-          tessedit_ocr_engine_mode: 1,   // LSTM only - faster
-          tessedit_pageseg_mode: 6,      // Assume uniform block of text
-          preserve_interword_spaces: 1
-        }).then(function(){ return w; });
-      }).then(function(w){
-        OCR_WORKER = w; OCR_READY = true;
-        var ob = document.getElementById("ocrbar");
-        if (ob) ob.textContent = "✅ Ready — tap screen to capture";
-      });
-    }
-  }, 500);
-  // Also start camera for OCR independently
-  startOCRCamera();
-}
-
-function startOCRCamera() {
-  if (OCR_STREAM) return;
-  navigator.mediaDevices.getUserMedia({
-    video:{ facingMode:"environment", width:{ideal:1920}, height:{ideal:1080} }
-  }).then(function(stream){
-    OCR_STREAM = stream;
-    var wrap = document.getElementById("qwrap");
-    // only inject if no video yet (Quagga might have one)
-    if (!wrap.querySelector("video")) {
-      var vid = document.createElement("video");
-      vid.srcObject = stream; vid.autoplay = true; vid.playsinline = true; vid.muted = true;
-      vid.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;";
-      wrap.appendChild(vid);
-    }
-  }).catch(function(){ console.warn("OCR camera failed"); });
-}
-
-function doOCR() {
-  if (!OCR_READY) {
-    var ob = document.getElementById("ocrbar");
-    if (ob) ob.textContent = "⏳ Still loading OCR, please wait…";
-    toast("OCR still loading, please wait a moment");
+function scanFrame(c, ctx) {
+  // Try ZXing first
+  if(window.ZXing){
+    try{
+      var lum=new ZXing.RGBLuminanceSource(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height);
+      var bmp=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+      var hints=new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.QR_CODE]);
+      var result=new ZXing.BrowserMultiFormatReader(hints).decode(bmp);
+      if(result&&result.text){
+        if(_awbLast===result.text){onAWBFound(result.text);}else{_awbLast=result.text;}
+      }
+    }catch(e){}
     return;
   }
-  var v = document.querySelector("#qwrap video");
-  if (!v || !v.videoWidth) { toast("Camera not ready, please wait"); return; }
-
-  // Flash effect
-  var fl = document.getElementById("scan-flash");
-  fl.style.opacity="0.7"; setTimeout(function(){ fl.style.opacity="0"; }, 200);
-  if (navigator.vibrate) navigator.vibrate(80);
-
-  var ob = document.getElementById("ocrbar");
-  if (ob) ob.textContent = "🔍 Reading label…";
-
-  // Hide tap button while processing
-  var tap = document.getElementById("ocr-tap");
-  if (tap) tap.style.display = "none";
-
-  var c = document.getElementById("tmpc");
-  c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext("2d").drawImage(v, 0, 0);
-
-  OCR_WORKER.recognize(c).then(function(res){
-    parseOCR(res.data.text);
-  }).catch(function(){
-    if (ob) ob.textContent = "❌ Failed. Move closer & tap again.";
-    if (tap) tap.style.display = "flex";
-  });
-}
-
-function stopOCRCamera() {
-  if (OCR_STREAM) { OCR_STREAM.getTracks().forEach(function(t){ t.stop(); }); OCR_STREAM = null; }
-}
-function parseOCR(text) {
-  var lines = text.split("\n").map(function(l){ return l.trim(); }).filter(function(l){ return l.length>1; });
-  var filled = {};
-  var pin = text.match(/\b([1-9][0-9]{5})\b/);
-  if (pin) { F.destPin = pin[1]; filled.destPin = true; }
-  var rps = [/(?:To|Receiver|Consignee|Ship To|Deliver To)\s*[:\-]?\s*([A-Za-z][A-Za-z ]{3,40})/i,
-             /(?:Name|Recvr)\s*[:\-]\s*([A-Za-z][A-Za-z ]{3,40})/i];
-  var gotR = false;
-  for (var i = 0; i < rps.length; i++) {
-    var m = text.match(rps[i]);
-    if (m && m[1] && m[1].trim().length > 3) { F.receiverName = titleCase(m[1].trim()); filled.receiverName = true; gotR = true; break; }
-  }
-  if (!gotR) {
-    for (var j = 0; j < lines.length; j++) {
-      if (/^[A-Za-z][A-Za-z .]{4,35}$/.test(lines[j]) && lines[j].split(" ").length >= 2) {
-        F.receiverName = titleCase(lines[j]); filled.receiverName = true; break;
+  // Fallback: Quagga decodeSingle
+  if(window.Quagga){
+    Quagga.decodeSingle({decoder:{readers:["code_128_reader","code_39_reader"]},locate:true,src:c.toDataURL()},function(r){
+      if(r&&r.codeResult&&r.codeResult.code){
+        if(_awbLast===r.codeResult.code){onAWBFound(r.codeResult.code);}else{_awbLast=r.codeResult.code;}
       }
-    }
-  }
-  var cm = text.match(/(?:City|Destination?)\s*[:\-]\s*([A-Za-z][A-Za-z ]{2,20})/i);
-  if (cm && cm[1]) { F.destCity = titleCase(cm[1].trim()); filled.destCity = true; }
-  var ph = text.match(/(?:Ph|Phone|Mob(?:ile)?|Contact)\s*[:\-]?\s*([6-9][0-9]{9})/i) || text.match(/\b([6-9][0-9]{9})\b/);
-  if (ph) { F.receiverPhone = ph[1]; filled.receiverPhone = true; }
-  if (!F.awb) { var aw = text.match(/\b([A-Z]{2,4}[0-9]{8,14})\b/); if(aw){ F.awb=aw[1]; filled.awb=true; } }
-  AF = filled;
-  var cnt = Object.keys(filled).length;
-  var ob = document.getElementById("ocrbar");
-  var tap = document.getElementById("ocr-tap");
-  if (cnt === 0) {
-    if (ob) ob.textContent = "⚠️ Could not read label. Move closer & tap again.";
-    if (tap) tap.style.display = "flex";
-    toast("Could not read label. Try again.");
-  } else {
-    if (navigator.vibrate) navigator.vibrate([80,40,80]);
-    if (ob) ob.textContent = "✅ " + cnt + " field" + (cnt>1?"s":"") + " extracted!";
-    setTimeout(function(){ closeScan(); toast("✅ " + cnt + " field" + (cnt>1?"s":"") + " auto-filled", 3000); renderBooking(); }, 600);
+    });
   }
 }
+function onAWBFound(code) {
+  stopAWBCam();
+  if(navigator.vibrate) navigator.vibrate([100,50,100]);
+  var fl=document.getElementById("scan-flash"); fl.style.opacity="0.9";
+  setTimeout(function(){fl.style.opacity="0";},250);
+  F.awb=code;
+  var bar=document.getElementById("ssbar"); if(bar) bar.textContent="✅ AWB: "+code;
+  setTimeout(function(){ closeScan(); toast("✅ AWB: "+code,3000); renderBooking(); },600);
+}
+
 
 // ═══════════════════════ HISTORY PAGE ════════════════════════════════════
 function renderHistory() {
@@ -994,193 +829,171 @@ function updBadge() { var el=document.getElementById("hbadge"); if(el) el.textCo
 document.getElementById("sharemb").addEventListener("click", function(e){ if(e.target===this) closeShare(); });
 
 // Init
-renderBooking(); updBadge();
 
 // ═══════════════════════ ADDRESS OCR ═════════════════════════════════════
-var OCR_CAM_STREAM = null;
-var OCR_EXTRACTED  = {};
+var _ocrStream=null;
+var OCR_EXTRACTED={};
 
-function openOCRCapture() {
+function openOCRCapture(){
   document.getElementById("ocr-modal").classList.add("open");
-  document.getElementById("ocr-results").style.display = "none";
-  document.getElementById("ocr-modal-status").textContent = "";
-  document.getElementById("ocr-preview").style.display = "none";
-  document.getElementById("ocr-cam-wrap").style.display = "none";
-  document.getElementById("ocr-cam-capture").style.display = "none";
+  document.getElementById("ocr-results").style.display="none";
+  document.getElementById("ocr-preview").style.display="none";
+  document.getElementById("ocr-cam-section").style.display="none";
+  document.getElementById("ocr-modal-status").textContent="Choose Camera or Upload a photo";
 }
-function closeOCRModal() {
-  stopOCRCam();
+function closeOCRModal(){
+  _stopOcrStream();
   document.getElementById("ocr-modal").classList.remove("open");
 }
-function stopOCRCam() {
-  if (OCR_CAM_STREAM) { OCR_CAM_STREAM.getTracks().forEach(function(t){ t.stop(); }); OCR_CAM_STREAM = null; }
+function ocrTryAgain(){
+  _stopOcrStream();
+  document.getElementById("ocr-results").style.display="none";
+  document.getElementById("ocr-preview").style.display="none";
+  document.getElementById("ocr-cam-section").style.display="none";
+  document.getElementById("ocr-modal-status").textContent="";
 }
-
-function ocrUseCamera() {
-  document.getElementById("ocr-cam-wrap").style.display = "block";
-  document.getElementById("ocr-cam-capture").style.display = "block";
-  document.getElementById("ocr-modal-status").textContent = "Point camera at label and tap Capture";
-  navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment", width:{ideal:1920}, height:{ideal:1080} } })
-  .then(function(stream){
-    OCR_CAM_STREAM = stream;
-    var v = document.getElementById("ocr-vid");
-    v.srcObject = stream; v.play();
-  }).catch(function(){ document.getElementById("ocr-modal-status").textContent = "Camera not available. Use Upload instead."; });
+function _stopOcrStream(){
+  if(_ocrStream){_ocrStream.getTracks().forEach(function(t){t.stop();});_ocrStream=null;}
+  var v=document.getElementById("ocr-vid"); if(v) v.srcObject=null;
 }
-
-function ocrCaptureFromCam() {
-  var v = document.getElementById("ocr-vid");
-  if (!v.videoWidth) { toast("Camera not ready"); return; }
-  var c = document.createElement("canvas");
-  c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext("2d").drawImage(v, 0, 0);
-  stopOCRCam();
-  document.getElementById("ocr-cam-wrap").style.display = "none";
-  document.getElementById("ocr-cam-capture").style.display = "none";
+function ocrStartCamera(){
+  var sec=document.getElementById("ocr-cam-section");
+  var st=document.getElementById("ocr-modal-status");
+  sec.style.display="block"; st.textContent="📷 Starting camera…";
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}})
+  .then(function(s){
+    _ocrStream=s;
+    var v=document.getElementById("ocr-vid"); v.srcObject=s; v.play();
+    st.textContent="Camera ready — fit label in frame, then tap CAPTURE";
+  }).catch(function(e){ st.textContent="Camera error: "+e.message; sec.style.display="none"; });
+}
+function ocrCaptureFromCam(){
+  var v=document.getElementById("ocr-vid");
+  var btn=document.getElementById("ocr-cap-btn");
+  if(!v||!v.videoWidth){toast("Camera not ready");return;}
+  btn.textContent="Capturing…"; btn.disabled=true;
+  var c=document.createElement("canvas");
+  c.width=v.videoWidth; c.height=v.videoHeight;
+  c.getContext("2d").drawImage(v,0,0);
+  _stopOcrStream();
+  document.getElementById("ocr-cam-section").style.display="none";
+  btn.textContent="CAPTURE & READ LABEL"; btn.disabled=false;
   runOCR(c);
 }
-
-function ocrFromFile(inp) {
-  if (!inp.files || !inp.files[0]) return;
-  var img = new Image();
-  var url = URL.createObjectURL(inp.files[0]);
-  img.onload = function(){
-    var c = document.createElement("canvas");
-    c.width = img.width; c.height = img.height;
-    c.getContext("2d").drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
-    runOCR(c);
+function ocrFromFile(inp){
+  if(!inp.files||!inp.files[0]) return;
+  document.getElementById("ocr-modal-status").textContent="Loading image…";
+  var img=new Image(), url=URL.createObjectURL(inp.files[0]);
+  img.onload=function(){
+    var c=document.createElement("canvas");
+    c.width=img.naturalWidth; c.height=img.naturalHeight;
+    c.getContext("2d").drawImage(img,0,0);
+    URL.revokeObjectURL(url); inp.value=""; runOCR(c);
   };
-  img.src = url;
+  img.onerror=function(){document.getElementById("ocr-modal-status").textContent="Could not load image";};
+  img.src=url;
 }
-
-function runOCR(canvas) {
-  var st = document.getElementById("ocr-modal-status");
-  var prev = document.getElementById("ocr-preview");
-
-  // Show preview
-  prev.width = canvas.width; prev.height = canvas.height;
-  prev.style.display = "block";
-  prev.getContext("2d").drawImage(canvas, 0, 0);
-
-  st.textContent = "⏳ Reading text…";
-
-  if (!window.Tesseract) { st.textContent = "⏳ Loading OCR engine…"; }
-
-  function doRecognize() {
-    if (!window.Tesseract) { setTimeout(doRecognize, 500); return; }
-    // Use multiple PSM modes and pick best result
-    Promise.all([
-      Tesseract.recognize(canvas, "eng", {
-        logger: function(m){ if(m.progress && m.status==="recognizing text") st.textContent = "🔍 Reading… " + Math.round(m.progress*100) + "%"; }
-      })
-    ]).then(function(results){
-      var text = results[0].data.text;
-      showOCRResults(text);
-    }).catch(function(e){
-      st.textContent = "❌ OCR failed. Try with better lighting.";
-    });
+function runOCR(canvas){
+  var st=document.getElementById("ocr-modal-status");
+  var prev=document.getElementById("ocr-preview");
+  var mw=340,sc=Math.min(1,mw/canvas.width);
+  prev.width=canvas.width*sc; prev.height=canvas.height*sc;
+  prev.style.display="block";
+  prev.getContext("2d").drawImage(canvas,0,0,prev.width,prev.height);
+  st.textContent="Reading label…";
+  document.getElementById("ocr-results").style.display="none";
+  function go(){
+    if(!window.Tesseract){st.textContent="Loading OCR engine…";setTimeout(go,600);return;}
+    Tesseract.recognize(canvas,"eng",{
+      logger:function(m){if(m.status==="recognizing text"&&m.progress!=null)st.textContent="Reading… "+Math.round(m.progress*100)+"%";}
+    }).then(function(r){parseAndShowOCR(r.data.text);}).catch(function(){st.textContent="OCR failed. Try better lighting or a clearer photo.";});
   }
-  doRecognize();
+  go();
 }
-
-function showOCRResults(text) {
-  var st = document.getElementById("ocr-modal-status");
-  st.textContent = "✅ Done — review and apply";
-
-  // Parse extracted fields
-  OCR_EXTRACTED = {};
-
-  // Pincode — 6 digits
-  var pin = text.match(/([1-9][0-9]{5})/);
-  if (pin) OCR_EXTRACTED.destPin = pin[1];
-
-  // Phone — 10 digit Indian mobile
-  var ph = text.match(/([6-9][0-9]{9})/);
-  if (ph) OCR_EXTRACTED.receiverPhone = ph[1];
-
-  // Receiver name — look for keywords first
-  var namePatterns = [
-    /(?:To|Receiver|Consignee|Ship To|Deliver To|Recvr|Attn)\s*[:\-]?\s*([A-Za-z][A-Za-z\s\.]{3,40})/i,
-    /(?:Name)\s*[:\-]\s*([A-Za-z][A-Za-z\s\.]{3,40})/i
-  ];
-  var gotName = false;
-  for (var i=0; i<namePatterns.length; i++) {
-    var m = text.match(namePatterns[i]);
-    if (m && m[1] && m[1].trim().length > 3) {
-      OCR_EXTRACTED.receiverName = titleCase(m[1].trim().replace(/\s+/g," "));
-      gotName = true; break;
-    }
-  }
-  if (!gotName) {
-    // Fallback: find a line that looks like a name (2+ words, only letters)
-    var lines = text.split("\n").map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 3; });
-    for (var j=0; j<lines.length; j++) {
-      if (/^[A-Za-z][A-Za-z\s\.]{4,35}$/.test(lines[j]) && lines[j].split(/\s+/).length >= 2) {
-        OCR_EXTRACTED.receiverName = titleCase(lines[j].replace(/\s+/g," "));
-        break;
+function parseAndShowOCR(text){
+  var st=document.getElementById("ocr-modal-status");
+  OCR_EXTRACTED={};
+  var pin=text.match(/\b([1-9][0-9]{5})\b/); if(pin) OCR_EXTRACTED.destPin=pin[1];
+  var ph=text.match(/\b([6-9][0-9]{9})\b/); if(ph) OCR_EXTRACTED.receiverPhone=ph[1];
+  var nkw=text.match(/(?:To|Receiver|Consignee|Ship To|Deliver To|Recvr|Attn|Name)\s*[:\-]?\s*([A-Za-z][A-Za-z \.]{3,40})/i);
+  if(nkw&&nkw[1]&&nkw[1].trim().length>3){
+    OCR_EXTRACTED.receiverName=titleCase(nkw[1].trim().replace(/\s+/g," "));
+  } else {
+    var lns=text.split("\n").map(function(l){return l.trim();}).filter(function(l){return l.length>3;});
+    for(var j=0;j<lns.length;j++){
+      if(/^[A-Za-z][A-Za-z \.]{4,35}$/.test(lns[j])&&lns[j].split(/\s+/).length>=2){
+        OCR_EXTRACTED.receiverName=titleCase(lns[j].replace(/\s+/g," ")); break;
       }
     }
   }
-
-  // City
-  var cm = text.match(/(?:City|Dist(?:rict)?|Destination?)\s*[:\-]\s*([A-Za-z][A-Za-z\s]{2,20})/i);
-  if (cm && cm[1]) OCR_EXTRACTED.destCity = titleCase(cm[1].trim());
-
-  // If pincode found but no city, look it up
-  if (OCR_EXTRACTED.destPin && !OCR_EXTRACTED.destCity) {
-    var city = pinLookup(OCR_EXTRACTED.destPin);
-    if (city) OCR_EXTRACTED.destCity = city;
+  var cm=text.match(/(?:City|Dist(?:rict)?|Dest(?:ination)?)\s*[:\-]\s*([A-Za-z][A-Za-z ]{2,20})/i);
+  if(cm&&cm[1]) OCR_EXTRACTED.destCity=titleCase(cm[1].trim());
+  if(OCR_EXTRACTED.destPin&&!OCR_EXTRACTED.destCity){
+    var city=pinLookup(OCR_EXTRACTED.destPin); if(city) OCR_EXTRACTED.destCity=city;
   }
-
-  // Build results UI
-  var fieldsDiv = document.getElementById("ocr-fields");
-  var FIELD_LABELS = { receiverName:"Receiver Name", receiverPhone:"Receiver Phone", destPin:"Pincode", destCity:"Destination City" };
-  var h = "";
-  var count = 0;
-  var keys = ["receiverName","receiverPhone","destPin","destCity"];
-  for (var ki=0; ki<keys.length; ki++) {
-    var k = keys[ki];
-    var val = OCR_EXTRACTED[k] || "";
-    var col = val ? "border-color:#22c55e;" : "border-color:#f87171;";
-    h += "<div class='fd'><label class='lbl'>" + FIELD_LABELS[k] + "</label>";
-    h += "<input type='text' value='" + esc(val) + "' style='" + col + "' ";
-    h += "<input type='text' value='" + esc(val) + "' style='" + col + "' data-ocr='" + k + "' oninput='ocrFieldEdit(this)'></div>";
-    h += "</div>";
-    if (val) count++;
+  var keys=["receiverName","receiverPhone","destPin","destCity"];
+  var lbls={receiverName:"Receiver Name",receiverPhone:"Receiver Phone",destPin:"Pincode",destCity:"Destination City"};
+  var html="",count=0;
+  for(var ki=0;ki<keys.length;ki++){
+    var k=keys[ki],val=OCR_EXTRACTED[k]||"";
+    var col=val?"border-color:#22c55e;":"border-color:#ddd;";
+    html+="<div class='fd'><label class='lbl'>"+lbls[k]+(val?" <span style='color:#22c55e;'>✓</span>":"")+"</label>";
+    html+="<input type='text' value='"+esc(val)+"' style='"+col+"' data-ocr='"+k+"' oninput='ocrEdit(this)'>";
+    html+="</div>";
+    if(val) count++;
   }
-
-  if (count === 0) {
-    h = '<div style="text-align:center;padding:16px;color:#92400e;background:#fff8e1;border-radius:8px;">⚠️ Could not extract any fields.<br>Try better lighting or a closer photo.</div>';
-    document.getElementById("ocr-results").style.display = "block";
-    fieldsDiv.innerHTML = h;
-    return;
-  }
-
-  fieldsDiv.innerHTML = h;
-  document.getElementById("ocr-results").style.display = "block";
-  st.textContent = "✅ " + count + " field" + (count>1?"s":"") + " extracted — edit if needed";
+  document.getElementById("ocr-fields").innerHTML=html;
+  document.getElementById("ocr-results").style.display="block";
+  st.textContent=count===0?"Could not read fields. Try closer/better lighting.":""+count+" field"+(count>1?"s":"")+" extracted";
 }
-
-function ocrFieldEdit(el) {
-  var k = el.getAttribute("data-ocr");
-  if (k) OCR_EXTRACTED[k] = el.value;
+function ocrEdit(el){var k=el.getAttribute("data-ocr");if(k)OCR_EXTRACTED[k]=el.value;}
+function applyOCRResults(){
+  var n=0; Object.keys(OCR_EXTRACTED).forEach(function(k){if(OCR_EXTRACTED[k]){F[k]=OCR_EXTRACTED[k];n++;}});
+  closeOCRModal(); toast(""+n+" field"+(n>1?"s":"")+" applied",2500); renderBooking();
 }
+document.getElementById("ocr-modal").addEventListener("click",function(e){if(e.target===this)closeOCRModal();});
 
-function applyOCRResults() {
-  Object.keys(OCR_EXTRACTED).forEach(function(k){
-    if (OCR_EXTRACTED[k]) F[k] = OCR_EXTRACTED[k];
-  });
-  closeOCRModal();
-  toast("✅ Fields applied to form", 2500);
-  renderBooking();
-}
-
-// Close OCR modal on bg tap
-document.getElementById("ocr-modal").addEventListener("click", function(e){ if(e.target===this) closeOCRModal(); });
+renderBooking(); updBadge();
 </script>
 
+<script async src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js" onload="if(window.ZXingLibrary)ZXing=window.ZXingLibrary;"></script>
 <script async src="https://unpkg.com/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 <script async src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- OCR CAPTURE MODAL -->
+<div class="mbg" id="ocr-modal">
+  <div class="mbox" style="max-height:95vh;">
+    <div class="mhandle"></div>
+    <div style="font-weight:800;font-size:17px;margin-bottom:2px;">📷 Scan Address Label</div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px;">Works on printed &amp; handwritten labels</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="ocrStartCamera()" style="flex:1;padding:12px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">📷 Camera</button>
+      <button onclick="document.getElementById('ocr-file-inp').click()" style="flex:1;padding:12px;background:#6b7280;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🖼 Upload Photo</button>
+    </div>
+    <input type="file" id="ocr-file-inp" accept="image/*" style="display:none;" onchange="ocrFromFile(this)">
+    <div id="ocr-cam-section" style="display:none;">
+      <div style="position:relative;border-radius:12px;overflow:hidden;margin-bottom:10px;background:#000;">
+        <video id="ocr-vid" autoplay playsinline muted style="width:100%;display:block;max-height:42vh;object-fit:cover;"></video>
+        <div style="position:absolute;inset:6px;border:2px dashed rgba(14,165,233,.9);border-radius:8px;pointer-events:none;"></div>
+        <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;color:#fff;font-size:11px;font-weight:700;text-shadow:0 1px 3px #000;">Fit the full label in the frame</div>
+      </div>
+      <button onclick="ocrCaptureFromCam()" id="ocr-cap-btn"
+        style="width:100%;padding:16px;background:#CC0000;color:#fff;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;margin-bottom:10px;">
+        📸 CAPTURE &amp; READ LABEL
+      </button>
+    </div>
+    <div id="ocr-modal-status" style="text-align:center;font-size:13px;color:#555;padding:6px;min-height:22px;font-weight:600;"></div>
+    <canvas id="ocr-preview" style="display:none;width:100%;border-radius:8px;margin-bottom:8px;max-height:180px;"></canvas>
+    <div id="ocr-results" style="display:none;">
+      <div style="background:#f0fdf4;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:13px;font-weight:700;color:#166534;">✅ Review extracted fields — edit if needed</div>
+      <div id="ocr-fields"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="applyOCRResults()" style="flex:2;padding:14px;background:#CC0000;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">✅ Apply to Form</button>
+        <button onclick="ocrTryAgain()" style="flex:1;padding:14px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">🔄 Retry</button>
+      </div>
+    </div>
+    <button onclick="closeOCRModal()" style="width:100%;padding:12px;background:#f5f5f5;color:#888;border:none;border-radius:10px;font-size:14px;cursor:pointer;margin-top:10px;">✕ Close</button>
+  </div>
+</div>
+</body>
 </body>
 </html>
